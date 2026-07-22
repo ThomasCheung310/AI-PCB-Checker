@@ -4,15 +4,32 @@ from config import load_config
 keys = load_config()
 token = keys["github_token"]
 
+def parse_components(pcb):
+    components = []
+    in_components = False
+    for i in pcb.split("\n"):
+        if "COMPONENTS" in i:
+            in_components = True
+            continue
+        if in_components == True and line.strip():
+            parts = i.strip().split()
+            if len(parts) >= 2:
+                components.append(parts[1])
+    return components
 
-def check_pcb(data, database):
+
+def check_pcb(mcu, pcb, database):
     client = OpenAI(    
-        base_url = "https://models.inference.ai.azure.com",
+        base_url = "https://models.inference.ai.azure.com",   #change this later
         api_key = token,
     )
+
+    compressed_pcb = '\n'.join(line.strip() for line in data.split('\n') 
+                      if line.strip() and not line.startswith('#'))
+
     response = client.chat.completions.create(model="gpt-4o", 
                                 messages= [
-                                        {"role": "system", "content": "You are a hardware engineer with specialization in designing PCB. You will receive a netlist for a PCB design. Your job is to check whether if the wiring is correct, calculate the power consumption of each component as well as check if any part will exceed its max voltage/ current rating"},
-                                        {"role": "user", "content": f"This is the netlist {data} and this is the database containing all the parts you will be using {database}. \nReturn your analysis in this format:\nPASS or FAIL\nWARNINGS: list any issues found\nSUGGESTIONS: list recommended fixes"}]
+                                        {"role": "system", "content": "You are a PCB design engineer. Check the netlist for: 1) Missing essential circuits for the given MCU (programming circuit, reset, boot pins) 2) Power budget issues 3) Floating pins or missing grounds. Flag unknown components."},
+                                        {"role": "user", "content": f"MCU: {mcu}\n\nNetlist:\n{compressed_pcb}\n\nComponent Database:\n{database}\n\nReturn your analysis in this format:\nOVERALL: PASS or FAIL\nWARNINGS: list any issues found\nSUGGESTIONS: list recommended fixes"}]
     )
     return response.choices[0].message.content
