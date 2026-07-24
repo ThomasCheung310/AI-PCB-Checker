@@ -2,7 +2,8 @@ from openai import OpenAI
 from config import load_config
 
 keys = load_config()
-token = keys["github_token"]
+token = keys["GITHUB_TOKEN"]
+
 
 def parse_components(pcb):
     components = []
@@ -24,7 +25,7 @@ def check_pcb(mcu, pcb, database):
         api_key = token,
     )
 
-    compressed_pcb = '\n'.join(line.strip() for line in data.split('\n') 
+    compressed_pcb = '\n'.join(line.strip() for line in pcb.split('\n') 
                       if line.strip() and not line.startswith('#'))
 
     response = client.chat.completions.create(model="gpt-4o", 
