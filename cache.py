@@ -2,9 +2,6 @@ import json
 import os
 import requests
 from config import load_config
-from oauthlib.oauth2 import BackendApplicationClient
-from oauthlib.oauth2.rfc6749.errors import MissingTokenError
-from requests_oauthlib import OAuth2Session
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PARTS_CACHE = os.path.join(BASE_DIR, "data", "parts_cache.json")
@@ -39,7 +36,12 @@ def get_token(client_id, client_secret):
 
 def extract_data(response):
     data = response.json()
-    product = data["Products"][0]
+    products = data.get("Products", [])
+
+    if not products:
+        return {"source": "digikey", "part_number": "unknown", "error": "not found"}
+    
+    product = products[0]
     result = {"source": "digikey", "part_number": product["ManufacturerProductNumber"]}
     for i in product["Parameters"]:
         result[i["ParameterText"]] = i["ValueText"]
@@ -63,14 +65,22 @@ def digikey(part_id):
     result = extract_data(response)
     return result
 
-def get_component(part_id):
+def get_components(part_ids):
     cache = load_cache()
+    results = {}
+    missing = []
+    for i in part_ids:
 
-    if part_id in cache:
-        return cache[part_id]
+        if i in cache:
+            results[i] = cache[i]
     
-    else:
-        new_part = digikey(part_id)
-        cache[part_id] = new_part
-        save_cache(cache)
-        return new_part
+        else:
+            new_part = digikey(i)
+            if new_part.get("error"):
+                missing.append(i)
+            else:
+                cache[i] = new_part
+                results[i] = new_part
+            
+    save_cache(cache)
+    return results, missing

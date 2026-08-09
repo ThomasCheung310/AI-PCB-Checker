@@ -1,34 +1,23 @@
 from openai import OpenAI
 from config import load_config
+from cache import get_components
+import json
 
 keys = load_config()
-token = keys["GITHUB_TOKEN"]
+token = keys["GROQ_API_KEY"]
 
-
-def parse_components(pcb):
-    components = []
-    in_components = False
-    for i in pcb.split("\n"):
-        if "COMPONENTS" in i:
-            in_components = True
-            continue
-        if in_components == True and line.strip():
-            parts = i.strip().split()
-            if len(parts) >= 2:
-                components.append(parts[1])
-    return components
 
 
 def check_pcb(mcu, pcb, database):
     client = OpenAI(    
-        base_url = "https://models.inference.ai.azure.com",   #change this later
+        base_url = "https://api.groq.com/openai/v1",   
         api_key = token,
     )
 
     compressed_pcb = '\n'.join(line.strip() for line in pcb.split('\n') 
                       if line.strip() and not line.startswith('#'))
 
-    response = client.chat.completions.create(model="gpt-4o", 
+    response = client.chat.completions.create(model="openai/gpt-oss-20b", 
                                 messages= [
                                         {"role": "system", "content": "You are a PCB design engineer. Check the netlist for: 1) Missing essential circuits for the given MCU (programming circuit, reset, boot pins) 2) Power budget issues 3) Floating pins or missing grounds. Flag unknown components."},
                                         {"role": "user", "content": f"MCU: {mcu}\n\nNetlist:\n{compressed_pcb}\n\nComponent Database:\n{database}\n\nReturn your analysis in this format:\nOVERALL: PASS or FAIL\nWARNINGS: list any issues found\nSUGGESTIONS: list recommended fixes"}]
