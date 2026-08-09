@@ -14,6 +14,17 @@ if mcu == "Other":
     if mcu_custom:
         mcu = mcu_custom
 
+
+if "stage" not in st.session_state:
+    st.session_state.stage = "upload"
+if "database" not in st.session_state:
+    st.session_state.database = {}
+if "missing_parts" not in st.session_state:
+    st.session_state.missing_parts = []
+if "pcb_text" not in st.session_state:
+    st.session_state.pcb_text = ""
+
+
 def parse_components(pcb):
     components = []
     in_components = False
@@ -27,23 +38,40 @@ def parse_components(pcb):
                 components.append(parts[1])
     return components
 
-def check(mcu, netlist):
-    st.info(f"Checking PCB design for {mcu}...")
-    pcb = netlist.read().decode('utf-8')
-    components = parse_components(pcb)
-    database, missing = get_components(components)
-    database = json.dumps(database, indent=2)
-    
-    if missing:
-        #add check for missing parts
-    result = check_pcb(mcu, pcb, database)
-    
-    st.write(result)
-
 if st.button("Submit", icon="✅"):
     if not netlist:
         st.error("Please upload a netlist file")
     elif not mcu:
         st.error("Please specify your MCU")
     else:
-        check(mcu, netlist)
+        pcb = netlist.read().decode('utf-8')
+        st.session_state.pcb_text = pcb
+        components = parse_components(pcb)
+        database, missing = get_components(components)
+        st.session_state.database = database
+        st.session_state.missing_parts = missing
+        st.session_state.stage = "missing_input" if missing else "ready"
+
+if st.session_state.stage == "missing_input":        
+    st.warning("Some parts were not found. Please provide specs if known (optional).")
+    for i in st.session_state.missing_parts:
+        st.write(f"**{i}**")
+        voltage = st.text_input(f"Max voltage", key=f"v_{i}")
+        current = st.text_input(f"Max current", key=f"c_{i}")
+        st.session_state.database[i] = {
+            "source": "user_input" if (voltage or current) else "unknown",
+            "max_voltage": voltage if voltage else "unknown",
+            "max_current": current if current else "unknown"
+        }
+    if st.button("Continue with Analysis"):
+        st.session_state.stage = "ready"
+
+if st.session_state.stage == "ready":  
+    st.info(f"Checking PCB design for {mcu}...")
+    database = json.dumps(st.session_state.database, indent=2)
+    result = check_pcb(mcu, st.session_state.pcb_text, database)
+    st.write(result)
+    st.session_state.stage = "done"
+    
+
+
