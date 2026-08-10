@@ -65,7 +65,8 @@ if st.session_state.stage == "missing_input":
         }
     if st.button("Continue with Analysis"):
         st.session_state.stage = "ready"
-
+        st.rerun()
+        
 if st.session_state.stage == "ready":  
     st.info(f"Checking PCB design for {mcu}...")
     database = json.dumps(st.session_state.database, indent=2)
