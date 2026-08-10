@@ -1,11 +1,9 @@
 from openai import OpenAI
 from config import load_config
-from cache import get_components
-import json
+
 
 keys = load_config()
 token = keys["GROQ_API_KEY"]
-
 
 
 def check_pcb(mcu, pcb, database):
