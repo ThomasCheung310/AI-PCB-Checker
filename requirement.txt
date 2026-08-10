@@ -1,4 +1,6 @@
 streamlit
 openai
+requests
+python-dotenv
 requests-oauthlib
 oauthlib
